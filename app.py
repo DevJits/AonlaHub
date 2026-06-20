@@ -1,755 +1,636 @@
-import streamlit as st
-import time
-from datetime import datetime
-from utils.auth import login_user, register_user, get_current_user
-from utils.db import (
-    get_main_group_messages, send_main_group_message,
-    get_private_messages, send_private_message,
-    get_all_users, get_user_groups, create_group,
-    get_group_messages, send_group_message,
-    upload_file_to_cloudinary, get_group_members,
-    add_group_member, is_group_admin
-)
-from utils.ai import send_to_ai
+import streamlit as s
+import streamlit.components.v1 as c
 
-st.set_page_config(
-    page_title="Aonla Connect",
-    page_icon="🌿",
+# ── CONFIG ──
+
+s.set_page_config(
+    page_title="Aonla Hub – Everything You Need",
+    page_icon="https://i.ibb.co/gX2W1qx/aonla-hub.png",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
-
-# ─── CSS ─────────────────────────────────────────────────────────────────────
-st.markdown("""
+html = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aonla Hub – Everything You Need</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #D4AF37;
+    --gold-light: #F0D060;
+    --gold-dim: #A88A3A;
+    --gold-border: rgba(212,175,55,0.22);
+    --bg: #050505;
+    --card-bg: #111111;
+    --text-muted: #A88A3A;
+    --faint: #634E17;
+  }
+  html, body { background: var(--bg); color: var(--gold); font-family: 'Inter', sans-serif; min-height: 100vh; }
 
-/* Reset & Base */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  @media (min-width: 769px) {
+    html, body { overflow-x: hidden; overflow-y: auto; }
+  }
+  @media (max-width: 768px) {
+    html, body { overflow: hidden; height: 100vh; }
+  }
 
-html, body, [data-testid="stAppViewContainer"] {
-    background: #0d1117 !important;
-    font-family: 'DM Sans', sans-serif;
-    color: #e6edf3;
-}
+  /* ═══════════════════════════════════════
+     DESKTOP LAYOUT  (≥ 769px)
+  ═══════════════════════════════════════ */
+  @media (min-width: 769px) {
 
-[data-testid="stSidebar"] {
-    background: #161b22 !important;
-    border-right: 1px solid #21262d;
-    min-width: 320px !important;
-    max-width: 320px !important;
-}
+    .mobile-only { display: none !important; }
+    .desktop-only { display: flex; flex-direction: column; min-height: 100vh; }
 
-[data-testid="stSidebar"] > div:first-child {
-    padding: 0 !important;
-}
+    .desktop-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 60px; height: 72px; background: #0a0a0a;
+      border-bottom: 1px solid var(--gold-border);
+      position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px);
+    }
+    .logo-name {
+      font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 900;
+      background: linear-gradient(to right, var(--gold), var(--gold-light), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .logo-tag { font-size: 9px; letter-spacing: 0.2em; color: #C9A84C; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
 
-/* Hide Streamlit defaults */
-#MainMenu, footer, header { visibility: hidden; }
-[data-testid="stToolbar"] { display: none; }
-.stDeployButton { display: none; }
-div[data-testid="stDecoration"] { display: none; }
+    .desktop-nav { display: flex; align-items: center; gap: 6px; }
+    .desktop-nav-btn {
+      display: flex; align-items: center; gap: 7px; padding: 8px 18px; border-radius: 10px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+      cursor: pointer; border: 1px solid transparent; background: none; color: var(--text-muted);
+      transition: all 0.18s; text-decoration: none;
+    }
+    .desktop-nav-btn:hover { color: var(--gold); border-color: var(--gold-border); background: #111; }
+    .desktop-nav-btn.active { color: #050505; background: var(--gold); border-color: var(--gold); }
+    .desktop-nav-btn svg { width: 15px; height: 15px; }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+    .desktop-hero {
+      display: flex; align-items: center; justify-content: center; text-align: center; flex-direction: column;
+      padding: 80px 40px 60px;
+      background: radial-gradient(ellipse at center, rgba(212,175,55,0.06) 0%, transparent 70%);
+      border-bottom: 1px solid var(--gold-border);
+    }
+    .hero-icon-d { font-size: 32px; margin-bottom: 14px; display: block; animation: bounce-d 2s infinite; }
+    @keyframes bounce-d { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    .desktop-hero h1 {
+      font-family: 'Playfair Display', serif; font-size: clamp(36px, 4vw, 56px); font-weight: 900;
+      background: linear-gradient(to right, var(--gold), var(--gold-light), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      line-height: 1.15; margin-bottom: 16px;
+    }
+    .desktop-hero p { font-size: 16px; color: var(--text-muted); max-width: 520px; line-height: 1.7; margin-bottom: 28px; }
+    .hero-badge-d {
+      display: inline-flex; align-items: center; gap: 6px; background: #111; border: 1px solid var(--gold-dim);
+      padding: 8px 20px; border-radius: 99px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--gold);
+    }
 
-/* ─── Sidebar Header ─── */
-.sidebar-header {
-    background: linear-gradient(135deg, #1a7a4a 0%, #0d5c35 100%);
-    padding: 20px 16px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border-bottom: 1px solid #21262d;
-}
-.app-logo {
-    width: 42px; height: 42px;
-    background: rgba(255,255,255,0.15);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
-    backdrop-filter: blur(10px);
-}
-.app-title { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 17px; color: #fff; }
-.app-sub { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 1px; }
+    .desktop-main { flex: 1; max-width: 1200px; margin: 0 auto; padding: 48px 40px 80px; width: 100%; }
 
-/* ─── Search ─── */
-.search-box {
-    padding: 10px 12px;
-    border-bottom: 1px solid #21262d;
-}
-.search-box input {
-    width: 100%;
-    background: #0d1117;
-    border: 1px solid #30363d;
-    border-radius: 20px;
-    padding: 8px 14px;
-    color: #e6edf3;
-    font-size: 13px;
-    outline: none;
-}
+    .desktop-section-title {
+      font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--gold-light);
+      margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--gold-border);
+      display: flex; align-items: center; gap: 10px;
+    }
 
-/* ─── Chat Item ─── */
-.chat-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 16px;
-    cursor: pointer;
-    transition: background 0.15s;
-    border-bottom: 1px solid #1c2128;
-    position: relative;
-}
-.chat-item:hover { background: #1c2128; }
-.chat-item.active { background: #1f2937; border-left: 3px solid #1a7a4a; }
+    .pills-wrap-d { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 32px; }
+    .pill-d {
+      display: flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 99px;
+      font-size: 12px; font-weight: 700; border: 1px solid var(--gold-border); background: #111;
+      color: var(--text-muted); cursor: pointer; white-space: nowrap; transition: all 0.18s; user-select: none;
+    }
+    .pill-d:hover { border-color: var(--gold); color: var(--gold); }
+    .pill-d.active { background: var(--gold); color: #050505; border-color: var(--gold); box-shadow: 0 0 14px rgba(212,175,55,0.3); }
 
-.avatar {
-    width: 46px; height: 46px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 16px;
-    flex-shrink: 0;
-}
-.av-green { background: linear-gradient(135deg, #1a7a4a, #0d5c35); color: #fff; }
-.av-blue  { background: linear-gradient(135deg, #1d4ed8, #1e40af); color: #fff; }
-.av-purple{ background: linear-gradient(135deg, #7c3aed, #5b21b6); color: #fff; }
-.av-orange{ background: linear-gradient(135deg, #ea580c, #c2410c); color: #fff; }
-.av-ai    { background: linear-gradient(135deg, #0891b2, #0e7490); color: #fff; }
+    .default-hint-d { text-align: center; padding: 60px 20px; border: 1px dashed var(--gold-border); border-radius: 20px; }
+    .default-hint-d p { font-size: 14px; color: var(--faint); line-height: 1.8; }
 
-.chat-info { flex: 1; min-width: 0; }
-.chat-name { font-weight: 600; font-size: 14px; color: #e6edf3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-preview { font-size: 12px; color: #8b949e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-.chat-time { font-size: 10px; color: #8b949e; flex-shrink: 0; }
-.unread-badge {
-    background: #1a7a4a; color: #fff;
-    border-radius: 50%; width: 18px; height: 18px;
-    font-size: 10px; display: flex; align-items: center; justify-content: center;
-    margin-left: 4px;
-}
+    .cat-panel-d { display: none; }
+    .cat-panel-d.visible { display: block; animation: fadeIn 0.22s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-/* Section Label */
-.section-label {
-    padding: 8px 16px 4px;
-    font-size: 10px; font-weight: 700;
-    color: #8b949e; letter-spacing: 1.2px; text-transform: uppercase;
-}
+    .cat-banner-d {
+      background: linear-gradient(135deg, #171305, #2D230B, #171305);
+      border: 1px solid var(--gold-border); border-radius: 24px; padding: 60px 40px;
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+    }
+    .cat-big-emoji-d { font-size: 64px; margin-bottom: 16px; display: block; }
+    .cat-banner-d h2 { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--gold-light); margin-bottom: 10px; }
+    .cat-banner-d p { font-size: 14px; color: var(--text-muted); line-height: 1.7; max-width: 420px; margin-bottom: 28px; }
+    .dl-btn-d {
+      display: inline-flex; align-items: center; gap: 9px; background: var(--gold); color: #050505;
+      font-weight: 700; font-size: 13px; padding: 14px 32px; border-radius: 14px; text-decoration: none;
+      text-transform: uppercase; letter-spacing: 0.08em; transition: background 0.15s, transform 0.1s;
+      border: none; cursor: pointer;
+    }
+    .dl-btn-d:hover { background: var(--gold-light); }
+    .dl-btn-d:active { transform: scale(0.97); }
+    .dl-btn-d svg { width: 16px; height: 16px; }
+    .cat-hint-d { font-size: 10px; color: var(--faint); margin-top: 14px; }
 
-/* ─── Main Chat Area ─── */
-.chat-header {
-    background: #161b22;
-    border-bottom: 1px solid #21262d;
-    padding: 14px 20px;
-    display: flex; align-items: center; gap: 14px;
-    position: sticky; top: 0; z-index: 100;
-}
-.chat-header-info { flex: 1; }
-.chat-header-name { font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 16px; }
-.chat-header-sub { font-size: 11px; color: #8b949e; margin-top: 2px; }
-.chat-header-actions { display: flex; gap: 12px; }
-.header-btn {
-    background: #21262d; border: none; color: #8b949e;
-    width: 36px; height: 36px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 16px;
-    transition: all 0.15s;
-}
-.header-btn:hover { background: #30363d; color: #e6edf3; }
+    .locked-d {
+      background: var(--card-bg); border: 1px solid var(--gold-border); border-radius: 24px;
+      padding: 60px 40px; text-align: center; display: flex; flex-direction: column; align-items: center;
+    }
+    .locked-d .lock-icon { font-size: 52px; margin-bottom: 16px; }
+    .locked-d h2 { font-family: 'Playfair Display', serif; font-size: 26px; color: var(--gold-light); margin-bottom: 10px; }
+    .locked-d p { font-size: 14px; color: var(--text-muted); line-height: 1.7; max-width: 400px; margin-bottom: 28px; }
 
-/* ─── Messages ─── */
-.messages-container {
-    padding: 16px 20px;
-    display: flex; flex-direction: column; gap: 4px;
-    min-height: 400px;
-}
-.msg-row { display: flex; margin-bottom: 2px; }
-.msg-row.sent { justify-content: flex-end; }
-.msg-row.recv { justify-content: flex-start; }
+    .desktop-footer {
+      border-top: 1px solid var(--gold-border); padding: 24px 60px;
+      display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--faint);
+    }
+  }
 
-.msg-bubble {
-    max-width: 65%;
-    padding: 8px 12px 6px;
-    border-radius: 12px;
-    font-size: 13.5px;
-    line-height: 1.5;
-    position: relative;
-}
-.msg-bubble.sent {
-    background: #1a4731;
-    border-bottom-right-radius: 4px;
-    color: #d2f4e0;
-}
-.msg-bubble.recv {
-    background: #21262d;
-    border-bottom-left-radius: 4px;
-    color: #e6edf3;
-}
-.msg-bubble.ai-msg {
-    background: linear-gradient(135deg, #0c2940, #0e3a52);
-    border: 1px solid #1d4ed8;
-    color: #bae6fd;
-}
-.msg-sender { font-size: 11px; font-weight: 700; color: #1a7a4a; margin-bottom: 3px; }
-.msg-time { font-size: 10px; color: #8b949e; text-align: right; margin-top: 3px; }
-.msg-media img { max-width: 200px; border-radius: 8px; margin-bottom: 4px; }
+  /* ═══════════════════════════════════════
+     MOBILE LAYOUT  (≤ 768px)
+  ═══════════════════════════════════════ */
+  @media (max-width: 768px) {
 
-/* ─── Input Bar ─── */
-.input-area {
-    background: #161b22;
-    border-top: 1px solid #21262d;
-    padding: 12px 16px;
-    display: flex; align-items: center; gap: 10px;
-    position: sticky; bottom: 0;
-}
+    .desktop-only { display: none !important; }
+    .mobile-only { display: flex; }
 
-/* ─── Login Page ─── */
-.login-wrap {
-    min-height: 100vh;
-    display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, #0d1117 0%, #0a2818 100%);
-}
-.login-card {
-    background: #161b22;
-    border: 1px solid #21262d;
-    border-radius: 20px;
-    padding: 40px;
-    width: 100%; max-width: 400px;
-    box-shadow: 0 25px 60px rgba(0,0,0,0.4);
-}
-.login-logo { text-align: center; margin-bottom: 24px; }
-.login-logo-icon {
-    width: 72px; height: 72px;
-    background: linear-gradient(135deg, #1a7a4a, #0d5c35);
-    border-radius: 20px;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 36px; margin-bottom: 12px;
-}
-.login-title { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 26px; color: #e6edf3; }
-.login-sub { font-size: 13px; color: #8b949e; margin-top: 4px; }
+    .shell-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 0; }
 
-/* Streamlit widget overrides */
-.stTextInput > div > div > input,
-.stTextArea > div > div > textarea {
-    background: #0d1117 !important;
-    border: 1px solid #30363d !important;
-    border-radius: 10px !important;
-    color: #e6edf3 !important;
-    font-family: 'DM Sans', sans-serif !important;
-}
-.stTextInput > div > div > input:focus,
-.stTextArea > div > div > textarea:focus {
-    border-color: #1a7a4a !important;
-    box-shadow: 0 0 0 3px rgba(26,122,74,0.2) !important;
-}
-.stButton > button {
-    background: linear-gradient(135deg, #1a7a4a, #0d5c35) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 10px !important;
-    font-family: 'Nunito', sans-serif !important;
-    font-weight: 700 !important;
-    padding: 10px 20px !important;
-    transition: all 0.2s !important;
-    width: 100%;
-}
-.stButton > button:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 20px rgba(26,122,74,0.35) !important;
-}
-.stSelectbox > div > div {
-    background: #0d1117 !important;
-    border-color: #30363d !important;
-    color: #e6edf3 !important;
-}
-[data-testid="stFileUploader"] {
-    background: #0d1117;
-    border: 1px dashed #30363d;
-    border-radius: 10px;
-}
-.stTabs [data-baseweb="tab-list"] {
-    background: #0d1117;
-    border-radius: 10px;
-    gap: 4px;
-}
-.stTabs [data-baseweb="tab"] {
-    color: #8b949e;
-    background: transparent;
-    border-radius: 8px;
-}
-.stTabs [aria-selected="true"] {
-    background: #1a7a4a !important;
-    color: white !important;
-}
-.stSuccess { background: #0d2818 !important; border-color: #1a7a4a !important; }
-.stError { background: #2d0d0d !important; }
-hr { border-color: #21262d !important; }
-label { color: #8b949e !important; font-size: 12px !important; }
+    .phone {
+      width: 100%; max-width: 420px; margin: 0 auto; background: #090909;
+      display: flex; flex-direction: column; height: 100vh; position: relative; overflow: hidden;
+    }
 
-/* Message input row */
-.stChatMessage { background: transparent !important; }
-.msg-input-row {
-    display: flex; gap: 8px; align-items: flex-end;
-    background: #161b22;
-    padding: 10px 0 0;
-}
+    .notch { height: 28px; background: #000; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .notch-pill { width: 80px; height: 16px; background: #141414; border-radius: 99px; border: 1px solid #2e2507; display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .notch-dot { width: 6px; height: 6px; background: #38bdf8; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-/* AI badge */
-.ai-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    background: linear-gradient(90deg, #0891b2, #0e7490);
-    color: white; border-radius: 12px;
-    padding: 3px 10px; font-size: 11px; font-weight: 600;
-    margin-bottom: 4px;
-}
+    .app-header { padding: 10px 20px 12px; background: linear-gradient(to bottom, #0e0e0e, #080808); border-bottom: 1px solid var(--gold-border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .app-name { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 900; background: linear-gradient(to right, var(--gold), var(--gold-light), var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.1; }
+    .app-tagline { font-size: 9px; letter-spacing: 0.22em; color: #C9A84C; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+    .header-right { font-size: 9px; color: #C9A84C; }
+
+    .body { flex: 1; overflow-y: auto; background: var(--bg); padding: 16px 16px 100px; scrollbar-width: none; }
+    .body::-webkit-scrollbar { display: none; }
+
+    .hero { background: linear-gradient(135deg, #171305, #2D230B, #171305); border: 1px solid var(--gold-border); border-radius: 18px; padding: 20px 16px; text-align: center; margin-bottom: 20px; }
+    .hero-icon { font-size: 22px; margin-bottom: 6px; display: block; animation: bounce 2s infinite; }
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+    .hero h2 { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--gold-light); margin-bottom: 4px; }
+    .hero p { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; background: var(--bg); border: 1px solid var(--gold-dim); padding: 4px 12px; border-radius: 99px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gold); }
+
+    .section-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 0 2px; }
+    .section-label h3 { font-family: 'Playfair Display', serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; background: linear-gradient(to right, var(--gold-light), var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .section-label span { font-size: 10px; color: var(--text-muted); font-family: monospace; }
+
+    .pills-wrap { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 0; scrollbar-width: none; }
+    .pills-wrap::-webkit-scrollbar { display: none; }
+    .pill { flex-shrink: 0; padding: 6px 14px; border-radius: 99px; font-size: 10px; font-weight: 700; border: 1px solid var(--gold-border); background: #111; color: var(--text-muted); cursor: pointer; white-space: nowrap; transition: all 0.18s; user-select: none; }
+    .pill:active { transform: scale(0.96); }
+    .pill.active { background: var(--gold); color: #050505; border-color: var(--gold); box-shadow: 0 0 10px rgba(212,175,55,0.3); }
+
+    .cat-panel { display: none; margin-top: 14px; }
+    .cat-panel.visible { display: block; animation: fadeIn 0.22s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+    .cat-banner {
+      background: linear-gradient(135deg, #171305, #2D230B, #171305);
+      border: 1px solid var(--gold-border); border-radius: 18px; padding: 22px 16px 20px; text-align: center;
+    }
+    .cat-banner .cat-big-emoji { font-size: 38px; margin-bottom: 8px; display: block; }
+    .cat-banner h3 { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--gold-light); margin-bottom: 6px; }
+    .cat-banner p { font-size: 11px; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px; max-width: 240px; margin-left: auto; margin-right: auto; }
+    .cat-banner .download-btn { display: inline-flex; align-items: center; gap: 7px; background: var(--gold); color: #050505; font-weight: 700; font-size: 11px; padding: 11px 24px; border-radius: 12px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.08em; transition: background 0.15s, transform 0.1s; cursor: pointer; border: none; }
+    .cat-banner .download-btn:active { transform: scale(0.97); }
+    .cat-banner .download-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .cat-banner .hint { font-size: 9px; color: #634E17; margin-top: 10px; }
+
+    .default-hint { text-align: center; padding: 28px 16px; border: 1px dashed var(--gold-border); border-radius: 18px; margin-top: 14px; }
+    .default-hint p { font-size: 11px; color: #634E17; line-height: 1.6; }
+
+    .bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; height: 88px; background: #070707; border-top: 1px solid var(--gold-border); display: flex; align-items: center; justify-content: space-around; padding: 0 12px 26px; z-index: 30; }
+    .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 80px; background: none; border: none; cursor: pointer; color: #8A6A1D; padding: 0; transition: color 0.15s; position: relative; text-decoration: none; }
+    .nav-btn.active { color: var(--gold); }
+    .nav-btn.active::before { content: ''; position: absolute; top: -4px; width: 32px; height: 3px; background: linear-gradient(to right, var(--gold), var(--gold-light)); border-radius: 2px; }
+    .nav-btn svg { width: 18px; height: 18px; }
+    .nav-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .modal-overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.65); z-index: 50; align-items: flex-end; justify-content: center; }
+    .modal-overlay.open { display: flex; animation: fadeOverlay 0.2s ease; }
+    @keyframes fadeOverlay { from{opacity:0} to{opacity:1} }
+
+    .modal-sheet { width: 100%; background: #0c0c0c; border-top: 2px solid var(--gold-dim); border-radius: 28px 28px 0 0; padding: 10px 20px 36px; animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1); text-align: center; }
+    @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+
+    .modal-handle { width: 44px; height: 5px; background: #40310e; border-radius: 99px; margin: 0 auto 18px; }
+    .modal-icon { font-size: 36px; margin-bottom: 10px; display: block; }
+    .modal-sheet h4 { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--gold-light); margin-bottom: 8px; }
+    .modal-sheet p { font-size: 11px; color: var(--text-muted); line-height: 1.65; max-width: 260px; margin: 0 auto 20px; }
+    .modal-dl-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--gold); color: #050505; font-weight: 700; font-size: 12px; padding: 13px 0; border-radius: 13px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.08em; width: 100%; border: none; cursor: pointer; transition: background 0.15s; margin-bottom: 10px; }
+    .modal-dl-btn:active { background: var(--gold-light); }
+    .modal-dl-btn svg { width: 15px; height: 15px; }
+    .modal-close { font-size: 10px; color: #634E17; cursor: pointer; padding: 6px; display: block; }
+    .modal-close:hover { color: var(--text-muted); }
+
+    .home-indicator { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 100px; height: 3px; background: rgba(40,34,15,0.5); border-radius: 99px; pointer-events: none; z-index: 31; }
+  }
 </style>
-""", unsafe_allow_html=True)
+</head>
+<body>
 
-# ─── SESSION INIT ────────────────────────────────────────────────────────────
-if "user" not in st.session_state:
-    st.session_state.user = None
-if "active_chat" not in st.session_state:
-    st.session_state.active_chat = {"type": "main_group", "id": None, "name": "Aonla Connect", "is_group": True}
-if "search_query" not in st.session_state:
-    st.session_state.search_query = ""
-if "show_create_group" not in st.session_state:
-    st.session_state.show_create_group = False
-if "call_active" not in st.session_state:
-    st.session_state.call_active = False
+<!-- ════════════════════════════════════
+     DESKTOP VERSION
+════════════════════════════════════ -->
+<div class="desktop-only">
 
-# ─── AUTH PAGE ───────────────────────────────────────────────────────────────
-def show_auth():
-    st.markdown("""
-    <div style="text-align:center; padding: 40px 0 20px;">
-        <div style="display:inline-flex; align-items:center; justify-content:center;
-                    width:80px; height:80px; background:linear-gradient(135deg,#1a7a4a,#0d5c35);
-                    border-radius:24px; font-size:40px; margin-bottom:16px; box-shadow:0 12px 40px rgba(26,122,74,0.35);">
-            🌿
-        </div>
-        <div style="font-family:'Nunito',sans-serif; font-weight:800; font-size:28px; color:#e6edf3;">Aonla Connect</div>
-        <div style="font-size:13px; color:#8b949e; margin-top:4px;">Apne logon se judey raho 🤝</div>
+  <header class="desktop-header">
+    <div>
+      <div class="logo-name">Aonla Hub</div>
+      <div class="logo-tag">Everything You Need</div>
     </div>
-    """, unsafe_allow_html=True)
+    <nav class="desktop-nav">
+      <button class="desktop-nav-btn active" id="d-nav-collection" onclick="dTab('collection')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2 6h6l-5 4 2 6-5-4-5 4 2-6-5-4h6z"/></svg>
+        Collection
+      </button>
+      <button class="desktop-nav-btn" id="d-nav-basket" onclick="dOpenLocked()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        Basket 🔒
+      </button>
+      <a class="desktop-nav-btn" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener" style="background:var(--gold);color:#050505;border-color:var(--gold);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        Download App
+      </a>
+    </nav>
+  </header>
 
-    tab1, tab2 = st.tabs(["🔐  Login", "✨  Register"])
+  <section class="desktop-hero">
+    <span class="hero-icon-d">✨</span>
+    <h1>Your Orders are our<br>First Priority</h1>
+    <p>Aonla Hub: Your All-In-One Aonla Store for Every Product — Food, Grocery, Pharmacy, Gifts, Fashion &amp; Electronics.</p>
+    <div class="hero-badge-d">⚡ Best Aonla's Online Store</div>
+  </section>
 
-    with tab1:
-        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        email = st.text_input("Email", placeholder="aapka@email.com", key="login_email")
-        password = st.text_input("Password", type="password", placeholder="••••••••", key="login_pass")
-        if st.button("Login karo →", key="login_btn"):
-            if email and password:
-                user = login_user(email, password)
-                if user:
-                    st.session_state.user = user
-                    st.rerun()
-                else:
-                    st.error("❌ Galat email ya password!")
-            else:
-                st.warning("⚠️ Sab fields bharo")
 
-    with tab2:
-        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        name = st.text_input("Poora Naam", placeholder="Tumhara naam", key="reg_name")
-        email2 = st.text_input("Email", placeholder="aapka@email.com", key="reg_email")
-        phone = st.text_input("Phone (optional)", placeholder="+91 XXXXX XXXXX", key="reg_phone")
-        pass2 = st.text_input("Password", type="password", placeholder="Strong password", key="reg_pass")
-        if st.button("Register karo ✨", key="reg_btn"):
-            if name and email2 and pass2:
-                result = register_user(name, email2, pass2, phone)
-                if result:
-                    st.success("✅ Account ban gaya! Ab login karo.")
-                else:
-                    st.error("❌ Email already registered hai ya koi error hua.")
-            else:
-                st.warning("⚠️ Name, email aur password zaroori hai")
+  <main class="desktop-main">
 
-# ─── SIDEBAR ─────────────────────────────────────────────────────────────────
-def show_sidebar():
-    user = st.session_state.user
-    ac = st.session_state.active_chat
+    <div id="d-tab-collection">
+      <div class="desktop-section-title"><span>✨</span> Browse Categories</div>
+      <div class="pills-wrap-d">
+        <div class="pill-d" onclick="dSelectCat('food',this)">🍱 Food</div>
+        <div class="pill-d" onclick="dSelectCat('grocery',this)">🛒 Grocery &amp; Daily Essentials</div>
+        <div class="pill-d" onclick="dSelectCat('pharmacy',this)">💊 Pharmacy &amp; Healthcare</div>
+        <div class="pill-d" onclick="dSelectCat('gifts',this)">🎁 Gifts &amp; Lifestyle</div>
+        <div class="pill-d" onclick="dSelectCat('fashion',this)">👕 Fashion &amp; Clothing</div>
+        <div class="pill-d" onclick="dSelectCat('electronics',this)">🔌 Electronics &amp; Home</div>
+      </div>
 
-    st.markdown(f"""
-    <div class="sidebar-header">
-        <div class="app-logo">🌿</div>
+      <div class="default-hint-d" id="d-default-hint">
+        <p>👆 Select any category above to explore products<br>and get the download link to order</p>
+      </div>
+
+      <div class="cat-panel-d" id="d-panel-food">
+        <div class="cat-banner-d">
+          <span class="cat-big-emoji-d">🍱</span>
+          <h2>Food</h2>
+          <p>Fresh meals, snacks &amp; local kitchen delights delivered hot to your door.</p>
+          <a class="dl-btn-d" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Download Now to See Items &amp; Order
+          </a>
+          <p class="cat-hint-d">App mein poori list aur WhatsApp order available hai</p>
+        </div>
+      </div>
+      <div class="cat-panel-d" id="d-panel-grocery">
+        <div class="cat-banner-d">
+          <span class="cat-big-emoji-d">🛒</span>
+          <h2>Grocery &amp; Daily Essentials</h2>
+          <p>Rice, dal, oil, and everything you need for daily life — all in one place.</p>
+          <a class="dl-btn-d" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Download Now to See Items &amp; Order
+          </a>
+          <p class="cat-hint-d">App mein poori list aur WhatsApp order available hai</p>
+        </div>
+      </div>
+      <div class="cat-panel-d" id="d-panel-pharmacy">
+        <div class="cat-banner-d">
+          <span class="cat-big-emoji-d">💊</span>
+          <h2>Pharmacy &amp; Healthcare</h2>
+          <p>Medicines, supplements, and healthcare products from trusted local stores.</p>
+          <a class="dl-btn-d" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Download Now to See Items &amp; Order
+          </a>
+          <p class="cat-hint-d">App mein poori list aur WhatsApp order available hai</p>
+        </div>
+      </div>
+      <div class="cat-panel-d" id="d-panel-gifts">
+        <div class="cat-banner-d">
+          <span class="cat-big-emoji-d">🎁</span>
+          <h2>Gifts &amp; Lifestyle</h2>
+          <p>Unique gifts and lifestyle products perfect for every occasion.</p>
+          <a class="dl-btn-d" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Download Now to See Items &amp; Order
+          </a>
+          <p class="cat-hint-d">App mein poori list aur WhatsApp order available hai</p>
+        </div>
+      </div>
+      <div class="cat-panel-d" id="d-panel-fashion">
+        <div class="cat-banner-d">
+          <span class="cat-big-emoji-d">👕</span>
+          <h2>Fashion &amp; Clothing</h2>
+          <p>Trendy clothes, kurtas, and accessories for men, women, and kids.</p>
+          <a class="dl-btn-d" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Download Now to See Items &amp; Order
+          </a>
+          <p class="cat-hint-d">App mein poori list aur WhatsApp order available hai</p>
+        </div>
+      </div>
+      <div class="cat-panel-d" id="d-panel-electronics">
+        <div class="cat-banner-d">
+          <span class="cat-big-emoji-d">🔌</span>
+          <h2>Electronics &amp; Home Appliances</h2>
+          <p>Gadgets, cables, fans, bulbs and home appliances at the best prices.</p>
+          <a class="dl-btn-d" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Download Now to See Items &amp; Order
+          </a>
+          <p class="cat-hint-d">App mein poori list aur WhatsApp order available hai</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="d-tab-basket" style="display:none;">
+      <div class="locked-d">
+        <div class="lock-icon">🛒🔒</div>
+        <h2>Basket is Locked</h2>
+        <p>Download the Aonla Hub app to add items, manage your basket, and place orders directly on WhatsApp!</p>
+        <a class="dl-btn-d" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+          Download Now to Access Basket
+        </a>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="desktop-footer">
+    <span>© 2025 Aonla Hub — Everything You Need</span>
+    <span>Created with ❤️ for Aonla</span>
+  </footer>
+
+</div>
+
+
+<!-- ════════════════════════════════════
+     MOBILE VERSION
+════════════════════════════════════ -->
+<div class="mobile-only">
+  <div class="shell-wrap">
+    <div class="phone">
+
+      <div class="notch">
+        <div class="notch-pill"><div class="notch-dot"></div></div>
+      </div>
+
+      <div class="app-header">
         <div>
-            <div class="app-title">Aonla Connect</div>
-            <div class="app-sub">👤 {user.get('name','User')}</div>
+          <div class="app-name">Aonla Hub</div>
+          <div class="app-tagline">Everything You Need</div>
         </div>
+        <div class="header-right">Created with ❤️</div>
+      </div>
+
+      <div class="body">
+
+        <div class="hero">
+          <span class="hero-icon">✨</span>
+          <h2>Your Orders are our First Priority</h2>
+          <p>Aonla Hub: Your All-In-One Aonla Store for Every Product!</p>
+          <div class="hero-badge">⚡ Best Aonla's Online Store</div>
+        </div>
+
+        <div class="section-label">
+          <h3>✨ Collection</h3>
+          <span>Tap a category</span>
+        </div>
+
+        <div class="pills-wrap">
+          <div class="pill" onclick="selectCat('food',this)">🍱 Food</div>
+          <div class="pill" onclick="selectCat('grocery',this)">🛒 Grocery</div>
+          <div class="pill" onclick="selectCat('pharmacy',this)">💊 Pharmacy</div>
+          <div class="pill" onclick="selectCat('gifts',this)">🎁 Gifts</div>
+          <div class="pill" onclick="selectCat('fashion',this)">👕 Fashion</div>
+          <div class="pill" onclick="selectCat('electronics',this)">🔌 Electronics</div>
+        </div>
+
+        <div class="default-hint" id="default-hint">
+          <p>👆 Tap any category above<br>to explore products and order</p>
+        </div>
+
+        <div class="cat-panel" id="panel-food">
+          <div class="cat-banner">
+            <span class="cat-big-emoji">🍱</span>
+            <h3>Food</h3>
+            <p>Fresh meals, snacks &amp; local kitchen delights delivered hot to your door.</p>
+            <a class="download-btn" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              Download Now to See Items &amp; Order
+            </a>
+            <p class="hint">App mein poori list aur WhatsApp order available hai</p>
+          </div>
+        </div>
+
+        <div class="cat-panel" id="panel-grocery">
+          <div class="cat-banner">
+            <span class="cat-big-emoji">🛒</span>
+            <h3>Grocery &amp; Daily Essentials</h3>
+            <p>Rice, dal, oil, and everything you need for daily life — all in one place.</p>
+            <a class="download-btn" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              Download Now to See Items &amp; Order
+            </a>
+            <p class="hint">App mein poori list aur WhatsApp order available hai</p>
+          </div>
+        </div>
+
+        <div class="cat-panel" id="panel-pharmacy">
+          <div class="cat-banner">
+            <span class="cat-big-emoji">💊</span>
+            <h3>Pharmacy &amp; Healthcare</h3>
+            <p>Medicines, supplements, and healthcare products from trusted local stores.</p>
+            <a class="download-btn" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              Download Now to See Items &amp; Order
+            </a>
+            <p class="hint">App mein poori list aur WhatsApp order available hai</p>
+          </div>
+        </div>
+
+        <div class="cat-panel" id="panel-gifts">
+          <div class="cat-banner">
+            <span class="cat-big-emoji">🎁</span>
+            <h3>Gifts &amp; Lifestyle</h3>
+            <p>Unique gifts and lifestyle products perfect for every occasion.</p>
+            <a class="download-btn" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              Download Now to See Items &amp; Order
+            </a>
+            <p class="hint">App mein poori list aur WhatsApp order available hai</p>
+          </div>
+        </div>
+
+        <div class="cat-panel" id="panel-fashion">
+          <div class="cat-banner">
+            <span class="cat-big-emoji">👕</span>
+            <h3>Fashion &amp; Clothing</h3>
+            <p>Trendy clothes, kurtas, and accessories for men, women, and kids.</p>
+            <a class="download-btn" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              Download Now to See Items &amp; Order
+            </a>
+            <p class="hint">App mein poori list aur WhatsApp order available hai</p>
+          </div>
+        </div>
+
+        <div class="cat-panel" id="panel-electronics">
+          <div class="cat-banner">
+            <span class="cat-big-emoji">🔌</span>
+            <h3>Electronics &amp; Home Appliances</h3>
+            <p>Gadgets, cables, fans, bulbs and home appliances at the best prices.</p>
+            <a class="download-btn" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              Download Now to See Items &amp; Order
+            </a>
+            <p class="hint">App mein poori list aur WhatsApp order available hai</p>
+          </div>
+        </div>
+
+      </div>
+      <!-- end body -->
+
+      <div class="modal-overlay" id="basket-modal" onclick="closeModal('basket-modal')">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+          <div class="modal-handle"></div>
+          <span class="modal-icon">🛒🔒</span>
+          <h4>Basket is Locked</h4>
+          <p>Download the Aonla Hub app to add items, manage your basket, and place orders directly on WhatsApp!</p>
+          <a class="modal-dl-btn" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Download Now to Access Basket
+          </a>
+          <span class="modal-close" onclick="closeModal('basket-modal')">✕ Close</span>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="getapp-modal" onclick="closeModal('getapp-modal')">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+          <div class="modal-handle"></div>
+          <span class="modal-icon">📲</span>
+          <h4>Download Aonla Hub</h4>
+          <p>Get the full Aonla Hub app — browse all products, add to basket, and order instantly via WhatsApp!</p>
+          <a class="modal-dl-btn" href="YOUR_APK_LINK_HERE" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            Download Aonla Hub Now
+          </a>
+          <span class="modal-close" onclick="closeModal('getapp-modal')">✕ Close</span>
+        </div>
+      </div>
+
+      <div class="bottom-nav">
+        <div class="nav-btn active" id="nav-collection" onclick="showCollection()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l2 6h6l-5 4 2 6-5-4-5 4 2-6-5-4h6z"/>
+          </svg>
+          <span class="nav-label">Collection</span>
+        </div>
+
+        <div class="nav-btn" id="nav-basket" onclick="openModal('basket-modal')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <path d="M16 10a4 4 0 01-8 0"/>
+          </svg>
+          <span class="nav-label">Basket</span>
+        </div>
+
+        <div class="nav-btn" id="nav-getapp" onclick="openModal('getapp-modal')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2"/>
+            <line x1="12" y1="18" x2="12" y2="18" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span class="nav-label">Get App</span>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
     </div>
-    """, unsafe_allow_html=True)
+  </div>
+</div>
 
-    # Search
-    search = st.text_input("", placeholder="🔍  Search karo...", key="sidebar_search", label_visibility="collapsed")
-    st.session_state.search_query = search.lower().strip()
+<script>
+  /* ── MOBILE ── */
+  function selectCat(id, el) {
+    document.querySelectorAll('.pill').forEach(function(p){ p.classList.remove('active'); });
+    el.classList.add('active');
+    document.getElementById('default-hint').style.display = 'none';
+    document.querySelectorAll('.cat-panel').forEach(function(p){ p.classList.remove('visible'); });
+    var panel = document.getElementById('panel-' + id);
+    if (panel) panel.classList.add('visible');
+    document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById('nav-collection').classList.add('active');
+  }
 
-    # ── Main Group ──
-    if not search:
-        st.markdown('<div class="section-label">📢 Main Group</div>', unsafe_allow_html=True)
-        is_active = ac["type"] == "main_group"
-        if st.button("🌿  Aonla Connect (Main Group)", key="btn_main_group", use_container_width=True):
-            st.session_state.active_chat = {"type": "main_group", "id": None, "name": "Aonla Connect", "is_group": True}
-            st.rerun()
+  function showCollection() {
+    document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById('nav-collection').classList.add('active');
+  }
 
-        # ── AI Chat ──
-        st.markdown('<div class="section-label">🤖 AI Assistant</div>', unsafe_allow_html=True)
-        if st.button("🤖  Jitarth AI", key="btn_ai_chat", use_container_width=True):
-            st.session_state.active_chat = {"type": "ai_chat", "id": "ai", "name": "Jitarth AI", "is_group": False}
-            st.rerun()
+  function openModal(id) {
+    document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+    if (id === 'basket-modal') document.getElementById('nav-basket').classList.add('active');
+    if (id === 'getapp-modal') document.getElementById('nav-getapp').classList.add('active');
+    document.getElementById(id).classList.add('open');
+  }
 
-    # ── People ──
-    all_users = get_all_users()
-    filtered_users = [u for u in all_users if u["id"] != user["id"]]
-    if search:
-        filtered_users = [u for u in filtered_users if search in u.get("name","").lower() or search in u.get("email","").lower()]
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById('nav-collection').classList.add('active');
+  }
 
-    if filtered_users:
-        st.markdown('<div class="section-label">👥 Direct Messages</div>', unsafe_allow_html=True)
-        for u in filtered_users[:20]:
-            uname = u.get("name", "User")
-            uid = u["id"]
-            is_active = ac["type"] == "dm" and ac["id"] == uid
-            icon = uname[0].upper()
-            btn_label = f"{'●' if is_active else '○'}  {icon} {uname}"
-            if st.button(btn_label, key=f"user_{uid}", use_container_width=True):
-                st.session_state.active_chat = {"type": "dm", "id": uid, "name": uname, "is_group": False, "peer": u}
-                st.rerun()
+  /* ── DESKTOP ── */
+  function dTab(tab) {
+    document.getElementById('d-tab-collection').style.display = tab === 'collection' ? 'block' : 'none';
+    document.getElementById('d-tab-basket').style.display = tab === 'basket' ? 'block' : 'none';
+    document.getElementById('d-nav-collection').classList.toggle('active', tab === 'collection');
+    document.getElementById('d-nav-basket').classList.toggle('active', tab === 'basket');
+  }
 
-    # ── Groups ──
-    if not search:
-        st.markdown('<div class="section-label">👥 My Groups</div>', unsafe_allow_html=True)
-        my_groups = get_user_groups(user["id"])
-        for g in my_groups:
-            gid = g["id"]
-            gname = g.get("name","Group")
-            is_active = ac["type"] == "group" and ac["id"] == gid
-            if st.button(f"# {gname}", key=f"grp_{gid}", use_container_width=True):
-                st.session_state.active_chat = {"type": "group", "id": gid, "name": gname, "is_group": True}
-                st.rerun()
+  function dOpenLocked() {
+    dTab('basket');
+  }
 
-        st.markdown("---")
-        if st.button("➕ Naya Group banao", use_container_width=True, key="new_grp_btn"):
-            st.session_state.show_create_group = True
-            st.rerun()
-
-        # Logout
-        st.markdown("---")
-        if st.button("🚪 Logout", use_container_width=True, key="logout_btn"):
-            st.session_state.user = None
-            st.session_state.active_chat = {"type": "main_group", "id": None, "name": "Aonla Connect", "is_group": True}
-            st.rerun()
-
-# ─── CREATE GROUP MODAL ───────────────────────────────────────────────────────
-def show_create_group():
-    st.markdown("### ➕ Naya Group Banao")
-    gname = st.text_input("Group ka naam", key="new_grp_name")
-    all_users = get_all_users()
-    user = st.session_state.user
-    others = [u for u in all_users if u["id"] != user["id"]]
-    options = {u["name"]: u["id"] for u in others}
-    selected = st.multiselect("Members chunno", list(options.keys()), key="grp_members")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("✅ Banao", key="create_grp_confirm"):
-            if gname:
-                member_ids = [options[n] for n in selected]
-                member_ids.append(user["id"])
-                result = create_group(gname, user["id"], member_ids)
-                if result:
-                    st.success(f"Group '{gname}' ban gaya!")
-                    st.session_state.show_create_group = False
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error("Group nahi bana. Try again.")
-    with col2:
-        if st.button("❌ Cancel", key="create_grp_cancel"):
-            st.session_state.show_create_group = False
-            st.rerun()
-
-# ─── RENDER MESSAGES ─────────────────────────────────────────────────────────
-def render_messages(messages, current_user_id):
-    if not messages:
-        st.markdown("""
-        <div style="text-align:center; padding:60px 20px; color:#8b949e;">
-            <div style="font-size:48px; margin-bottom:12px;">💬</div>
-            <div style="font-size:15px;">Abhi koi message nahi hai</div>
-            <div style="font-size:12px; margin-top:6px;">Pehla message bhejo! 🚀</div>
-        </div>
-        """, unsafe_allow_html=True)
-        return
-
-    for msg in messages:
-        is_sent = str(msg.get("user_id", msg.get("sender_id",""))) == str(current_user_id)
-        sender_name = msg.get("sender_name", msg.get("name",""))
-        content = msg.get("content", msg.get("message",""))
-        media_url = msg.get("media_url","")
-        msg_time = msg.get("created_at","")
-        if msg_time and len(msg_time) > 16:
-            msg_time = msg_time[11:16]
-        is_ai = msg.get("is_ai", False)
-
-        row_class = "sent" if is_sent else "recv"
-        bubble_class = "sent" if is_sent else ("ai-msg" if is_ai else "recv")
-
-        media_html = ""
-        if media_url:
-            ext = media_url.split(".")[-1].lower()
-            if ext in ["jpg","jpeg","png","gif","webp"]:
-                media_html = f'<div class="msg-media"><img src="{media_url}" /></div>'
-            else:
-                media_html = f'<a href="{media_url}" target="_blank" style="color:#1a7a4a;">📎 File download karo</a><br>'
-
-        sender_html = ""
-        if not is_sent and sender_name:
-            color = "#1a7a4a" if not is_ai else "#0891b2"
-            prefix = '<span class="ai-badge">🤖 Jitarth AI</span><br>' if is_ai else ""
-            sender_html = f'{prefix}<div class="msg-sender" style="color:{color}">{sender_name}</div>'
-
-        st.markdown(f"""
-        <div class="msg-row {row_class}">
-            <div class="msg-bubble {bubble_class}">
-                {sender_html}
-                {media_html}
-                <div>{content}</div>
-                <div class="msg-time">{msg_time}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-# ─── MAIN CHAT ────────────────────────────────────────────────────────────────
-def show_main_group():
-    user = st.session_state.user
-    ac = st.session_state.active_chat
-
-    # Header
-    st.markdown("""
-    <div class="chat-header">
-        <div class="avatar av-green" style="width:40px;height:40px;font-size:18px;">🌿</div>
-        <div class="chat-header-info">
-            <div class="chat-header-name">Aonla Connect</div>
-            <div class="chat-header-sub">📢 Main Group • Sab log yahan hain</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Messages
-    msgs = get_main_group_messages()
-    msg_container = st.container()
-    with msg_container:
-        render_messages(msgs, user["id"])
-
-    st.markdown("---")
-    # Input
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        msg_text = st.text_input("", placeholder="Message likho...", key="main_group_input", label_visibility="collapsed")
-    with col2:
-        uploaded = st.file_uploader("", key="main_grp_file", label_visibility="collapsed")
-
-    send_col, ai_col = st.columns([3,2])
-    with send_col:
-        if st.button("📤 Send", key="main_send", use_container_width=True):
-            media_url = None
-            if uploaded:
-                media_url = upload_file_to_cloudinary(uploaded)
-            if msg_text or media_url:
-                send_main_group_message(user["id"], user["name"], msg_text or "", media_url)
-                st.rerun()
-    with ai_col:
-        if st.button("🤖 AI ko Pucho", key="main_ai", use_container_width=True):
-            if msg_text:
-                with st.spinner("AI soch raha hai... 🧠"):
-                    ai_reply = send_to_ai(msg_text)
-                send_main_group_message(user["id"], user["name"], msg_text or "", None)
-                send_main_group_message("ai", "Jitarth AI", ai_reply, None, is_ai=True)
-                st.rerun()
-            else:
-                st.warning("Pehle question likho!")
-
-# ─── DM CHAT ─────────────────────────────────────────────────────────────────
-def show_dm():
-    user = st.session_state.user
-    ac = st.session_state.active_chat
-    peer = ac.get("peer", {})
-    peer_name = ac.get("name","")
-    peer_id = ac.get("id","")
-    icon = peer_name[0].upper() if peer_name else "?"
-
-    st.markdown(f"""
-    <div class="chat-header">
-        <div class="avatar av-blue" style="width:40px;height:40px;font-size:18px;">{icon}</div>
-        <div class="chat-header-info">
-            <div class="chat-header-name">{peer_name}</div>
-            <div class="chat-header-sub">{peer.get('email','')}</div>
-        </div>
-        <div style="display:flex; gap:8px;">
-            <span style="font-size:20px; cursor:pointer;" title="Voice Call">📞</span>
-            <span style="font-size:20px; cursor:pointer;" title="Video Call">📹</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Call UI (simple)
-    call_col1, call_col2 = st.columns(2)
-    with call_col1:
-        if st.button("📞 Voice Call", key="voice_call", use_container_width=True):
-            st.info(f"📞 {peer_name} ko call ho rahi hai... (WebRTC integration zaroori hai production mein)")
-    with call_col2:
-        if st.button("📹 Video Call", key="video_call", use_container_width=True):
-            st.info(f"📹 {peer_name} ke saath video call... (WebRTC integration zaroori hai production mein)")
-
-    msgs = get_private_messages(user["id"], peer_id)
-    render_messages(msgs, user["id"])
-
-    st.markdown("---")
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        msg_text = st.text_input("", placeholder="Message likho...", key="dm_input", label_visibility="collapsed")
-    with col2:
-        uploaded = st.file_uploader("", key="dm_file", label_visibility="collapsed")
-
-    if st.button("📤 Send", key="dm_send", use_container_width=True):
-        media_url = None
-        if uploaded:
-            media_url = upload_file_to_cloudinary(uploaded)
-        if msg_text or media_url:
-            send_private_message(user["id"], peer_id, user["name"], msg_text or "", media_url)
-            st.rerun()
-
-# ─── GROUP CHAT ───────────────────────────────────────────────────────────────
-def show_group_chat():
-    user = st.session_state.user
-    ac = st.session_state.active_chat
-    gid = ac["id"]
-    gname = ac["name"]
-    is_admin = is_group_admin(gid, user["id"])
-
-    st.markdown(f"""
-    <div class="chat-header">
-        <div class="avatar av-purple" style="width:40px;height:40px;font-size:18px;">#</div>
-        <div class="chat-header-info">
-            <div class="chat-header-name">{gname}</div>
-            <div class="chat-header-sub">{'👑 Group Admin' if is_admin else '👥 Group Member'}</div>
-        </div>
-        <div style="display:flex; gap:8px;">
-            <span style="font-size:20px; cursor:pointer;" title="Voice Call">📞</span>
-            <span style="font-size:20px; cursor:pointer;" title="Video Call">📹</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    call_col1, call_col2 = st.columns(2)
-    with call_col1:
-        if st.button("📞 Group Voice Call", key="grp_voice", use_container_width=True):
-            st.info("📞 Group voice call... (WebRTC zaroori hai)")
-    with call_col2:
-        if st.button("📹 Group Video Call", key="grp_video", use_container_width=True):
-            st.info("📹 Group video call... (WebRTC zaroori hai)")
-
-    if is_admin:
-        with st.expander("⚙️ Group Settings (Admin only)"):
-            all_users = get_all_users()
-            members = get_group_members(gid)
-            member_ids = [m["user_id"] for m in members]
-            non_members = [u for u in all_users if u["id"] not in member_ids]
-            if non_members:
-                to_add = st.selectbox("Member add karo", [u["name"] for u in non_members], key="add_member_sel")
-                if st.button("➕ Add Member", key="add_mem_btn"):
-                    uid_map = {u["name"]: u["id"] for u in non_members}
-                    add_group_member(gid, uid_map[to_add])
-                    st.success("Member add ho gaya!")
-                    st.rerun()
-
-    msgs = get_group_messages(gid)
-    render_messages(msgs, user["id"])
-
-    st.markdown("---")
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        msg_text = st.text_input("", placeholder="Message likho...", key="grp_input", label_visibility="collapsed")
-    with col2:
-        uploaded = st.file_uploader("", key="grp_file", label_visibility="collapsed")
-
-    if st.button("📤 Send", key="grp_send", use_container_width=True):
-        media_url = None
-        if uploaded:
-            media_url = upload_file_to_cloudinary(uploaded)
-        if msg_text or media_url:
-            send_group_message(gid, user["id"], user["name"], msg_text or "", media_url)
-            st.rerun()
-
-# ─── AI CHAT ─────────────────────────────────────────────────────────────────
-def show_ai_chat():
-    user = st.session_state.user
-
-    st.markdown("""
-    <div class="chat-header">
-        <div class="avatar av-ai" style="width:40px;height:40px;font-size:18px;">🤖</div>
-        <div class="chat-header-info">
-            <div class="chat-header-name">Jitarth AI</div>
-            <div class="chat-header-sub">🧠 Personal AI Assistant • Sirf tum dekh sakte ho</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if "ai_chat_history" not in st.session_state:
-        st.session_state.ai_chat_history = []
-
-    for msg in st.session_state.ai_chat_history:
-        is_sent = msg["role"] == "user"
-        bubble_class = "sent" if is_sent else "ai-msg recv"
-        sender = "Tum" if is_sent else "🤖 Jitarth AI"
-        ai_badge = '<span class="ai-badge">🤖 Jitarth AI</span><br>' if not is_sent else ""
-        st.markdown(f"""
-        <div class="msg-row {'sent' if is_sent else 'recv'}">
-            <div class="msg-bubble {bubble_class}">
-                {ai_badge}
-                <div>{msg['content']}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    question = st.text_area("", placeholder="AI se kuch bhi pucho... 🤔", key="ai_input", label_visibility="collapsed", height=80)
-
-    if st.button("🤖 AI ko Bhejo", key="ai_send", use_container_width=True):
-        if question.strip():
-            st.session_state.ai_chat_history.append({"role": "user", "content": question})
-            with st.spinner("🧠 Soch raha hai..."):
-                reply = send_to_ai(question)
-            st.session_state.ai_chat_history.append({"role": "assistant", "content": reply})
-            st.rerun()
-        else:
-            st.warning("Kuch likho toh!")
-
-    if st.button("🗑️ Chat Clear", key="ai_clear"):
-        st.session_state.ai_chat_history = []
-        st.rerun()
-
-# ─── MAIN ────────────────────────────────────────────────────────────────────
-def main():
-    if not st.session_state.user:
-        show_auth()
-        return
-
-    if st.session_state.show_create_group:
-        show_create_group()
-        return
-
-    with st.sidebar:
-        show_sidebar()
-
-    ac = st.session_state.active_chat
-    chat_type = ac["type"]
-
-    if chat_type == "main_group":
-        show_main_group()
-    elif chat_type == "dm":
-        show_dm()
-    elif chat_type == "group":
-        show_group_chat()
-    elif chat_type == "ai_chat":
-        show_ai_chat()
-    else:
-        st.markdown("<div style='text-align:center;padding:40px;color:#8b949e;'>← Koi chat select karo</div>", unsafe_allow_html=True)
-
-if __name__ == "__main__":
-    main()
+  function dSelectCat(id, el) {
+    document.querySelectorAll('.pills-wrap-d .pill-d').forEach(function(p){ p.classList.remove('active'); });
+    el.classList.add('active');
+    document.getElementById('d-default-hint').style.display = 'none';
+    document.querySelectorAll('[id^="d-panel-"]').forEach(function(p){ p.classList.remove('visible'); });
+    document.getElementById('d-panel-' + id).classList.add('visible');
+  }
+</script>
+</body>
+</html>
+"""
+c.html(
+    html,
+    height=900,      # apne page ke hisaab se badha lena
+    scrolling=False
+)
