@@ -9,6 +9,50 @@ s.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+s.markdown("""
+<style>
+
+/* Top header hide */
+header[data-testid="stHeader"] {
+    display: none;
+}
+
+/* Footer hide */
+footer {
+    display: none;
+}
+
+/* Hamburger menu hide */
+#MainMenu {
+    visibility: hidden;
+}
+
+/* Top blank space remove */
+.block-container {
+    padding-top: 0rem !important;
+    padding-bottom: 0rem !important;
+    padding-left: 0rem !important;
+    padding-right: 0rem !important;
+    max-width: 100% !important;
+}
+
+/* Main app container full width */
+[data-testid="stAppViewContainer"] {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Remove iframe margins */
+iframe {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 html = """
 <!DOCTYPE html>
 <html lang="en">
