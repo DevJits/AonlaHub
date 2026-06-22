@@ -15,6 +15,7 @@ html = """
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="google-site-verification" content="Fx12Y3Ko_4CK4aFg-0wgYq7iyMH-36H5LhfdUH0g28E" />
 <title>Aonla Hub – Everything You Need</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap');
